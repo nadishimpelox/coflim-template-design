@@ -333,7 +333,15 @@ const Admin = () => {
                       <div className="step-card roadmap-content">
                       <div className="step-header">
                         <div className="step-header-left">
-                          <div><div className="step-title">{step.title}</div><div className="step-subtitle">{step.desc}</div></div>
+                          <div>
+                            <div className="step-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              {step.title}
+                              <span style={{ fontSize: '0.75rem', fontWeight: '700', padding: '0.2rem 0.6rem', backgroundColor: '#e0e7ff', color: '#4f46e5', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                {step.type}
+                              </span>
+                            </div>
+                            <div className="step-subtitle">{step.desc}</div>
+                          </div>
                         </div>
                         <div className="step-header-right">
                           <div className="toggle-wrap" style={{marginRight: '1rem'}}>
@@ -353,15 +361,67 @@ const Admin = () => {
                         </>
                       )}
 
+                      {/* QUESTION TYPES */}
+                      {step.type === 'question' && (
+                        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                          <div className="add-option-row" style={{marginBottom: '1rem', border: 'none', padding: 0}}>
+                            <div style={{flex: 1}}>
+                              <label className="input-label">ADD NEW OPTION</label>
+                              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Yes" id={`new-qopt-${step.id}`} onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && e.target.value.trim()) {
+                                    handleUpdateStep(step.id, 'choices', [...(step.choices||[]), {id: Date.now(), text: e.target.value.trim()}]);
+                                    e.target.value = '';
+                                  }
+                                }} />
+                                <button className="btn-secondary" onClick={() => {
+                                  const input = document.getElementById(`new-qopt-${step.id}`);
+                                  if (input && input.value.trim()) {
+                                    handleUpdateStep(step.id, 'choices', [...(step.choices||[]), {id: Date.now(), text: input.value.trim()}]);
+                                    input.value = '';
+                                  }
+                                }}>Add Option</button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="configured-choices">
+                            <label className="input-label">CONFIGURED CHOICES</label>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                              {(step.choices || []).map(opt => (
+                                <div key={opt.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                  <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><GripVertical size={16} color="#cbd5e1"/> {opt.text}</div>
+                                  <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateStep(step.id, 'choices', step.choices.filter(o => o.id !== opt.id))} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* UPLOAD TYPES */}
                       {(step.type === 'audio' || step.type === 'video' || step.type === 'docs') && (
                         <>
-                          <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>{step.type === 'audio' ? 'Audio Upload' : step.type === 'video' ? 'File Upload' : 'Document Upload'}</label>
-                          <div className="upload-box">
-                            <div className="upload-icon-circle">{step.type === 'audio' ? <Mic size={24} /> : step.type === 'video' ? <Play size={24} /> : <FileUp size={24} />}</div>
-                            <div className="upload-title">Click to upload or drag and drop</div>
-                            <div className="upload-sub">Supported formats: {step.type === 'audio' ? 'MP3, WAV' : step.type === 'video' ? 'MP4, MOV' : 'PDF, DOCX'} (Max 200MB)</div>
-                          </div>
+                          <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>{step.type === 'audio' ? 'Audio Upload' : step.type === 'video' ? 'Video Upload' : 'Document Upload'}</label>
+                          <label className="upload-box" style={{display: 'block', cursor: 'pointer'}}>
+                            <input 
+                              type="file" 
+                              style={{display: 'none'}} 
+                              accept={step.type === 'audio' ? 'audio/*' : step.type === 'video' ? 'video/*' : '.pdf,.doc,.docx'} 
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  handleUpdateStep(step.id, 'uploadedFile', e.target.files[0].name);
+                                }
+                              }}
+                            />
+                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                              <div className="upload-icon-circle">{step.type === 'audio' ? <Mic size={24} /> : step.type === 'video' ? <Play size={24} /> : <FileUp size={24} />}</div>
+                              <div className="upload-title">
+                                {step.uploadedFile ? <span style={{color: '#4f46e5', fontWeight: '600'}}>{step.uploadedFile}</span> : 'Click to upload or drag and drop'}
+                              </div>
+                              {!step.uploadedFile && <div className="upload-sub">Supported formats: {step.type === 'audio' ? 'MP3, WAV' : step.type === 'video' ? 'MP4, MOV' : 'PDF, DOCX'} (Max 200MB)</div>}
+                            </div>
+                          </label>
                         </>
                       )}
 
@@ -394,6 +454,20 @@ const Admin = () => {
                             </div>
                           </div>
                         </>
+                      )}
+
+                      {/* ADMIN PRE-FILL ANSWER (for question, prompt, link) */}
+                      {(step.type === 'question' || step.type === 'prompt' || step.type === 'link') && (
+                        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                          <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Admin Pre-filled Value / Answer</label>
+                          <textarea 
+                            className="textarea-input" 
+                            placeholder={`Enter the default ${step.type} value here...`} 
+                            value={step.adminAnswer || ''} 
+                            onChange={(e) => handleUpdateStep(step.id, 'adminAnswer', e.target.value)} 
+                            style={{marginBottom: 0, minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1'}} 
+                          />
+                        </div>
                       )}
 
                       <ExpectedOutputSection step={step} />
