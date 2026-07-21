@@ -4,7 +4,7 @@ import {
   HelpCircle, LogOut, Activity, Plus, Trash2, 
   Link, FileImage, Sparkles, FileCode, HelpCircle as QuestionIcon,
   Video, Mic, FileUp, GripVertical, Play, AlertCircle, Sparkles as SparkIcon,
-  Edit2, Copy, Check
+  Edit2, Copy, Check, Save as SaveIcon
 } from 'lucide-react';
 import './Admin.css';
 
@@ -14,18 +14,21 @@ const Admin = () => {
 
   // Templates State
   const [templates, setTemplates] = useState([
-    { id: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true },
-    { id: 2, name: 'Untitled template', categories: '-', blocks: '-', active: true },
-    { id: 3, name: 'Untitled template', categories: '-', blocks: '-', active: true },
-    { id: 4, name: 'Untitled template', categories: '-', blocks: '-', active: true }
+    { id: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] },
+    { id: 2, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] },
+    { id: 3, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] },
+    { id: 4, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] }
   ]);
   
   const [activeTemplate, setActiveTemplate] = useState(templates[0]);
 
   // Categories State
   const [categories, setCategories] = useState([
-    { id: 1, name: 'Support' },
-    { id: 2, name: 'Marketing' }
+    { id: 1, name: 'Popular' },
+    { id: 2, name: 'AI Memory' },
+    { id: 3, name: 'Trends' },
+    { id: 4, name: 'YouTube' },
+    { id: 5, name: 'Ads' }
   ]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
@@ -44,6 +47,14 @@ const Admin = () => {
   const [newActionInput, setNewActionInput] = useState('');
   const [stepToDelete, setStepToDelete] = useState(null);
 
+  const handleToggleCategory = (categoryId) => {
+    const currentIds = activeTemplate.categoryIds || [];
+    const newIds = currentIds.includes(categoryId) 
+      ? currentIds.filter(id => id !== categoryId)
+      : [...currentIds, categoryId];
+    setActiveTemplate({ ...activeTemplate, categoryIds: newIds });
+  };
+
   // --- Templates List Logic ---
   const handleToggleTemplateActive = (id) => {
     setTemplates(templates.map(t => t.id === id ? { ...t, active: !t.active } : t));
@@ -56,6 +67,11 @@ const Admin = () => {
     setTemplates(templates.filter(t => t.id !== id));
   };
   const handleCreateTemplate = () => {
+    setSteps([]); // Start with an empty workflow
+    const newId = templates.length > 0 ? Math.max(...templates.map(t => t.id)) + 1 : 1;
+    const newTemplate = { id: newId, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] };
+    setTemplates([...templates, newTemplate]);
+    setActiveTemplate(newTemplate);
     setCurrentView('builder');
   };
 
@@ -255,22 +271,58 @@ const Admin = () => {
           <>
             <header className="topbar">
               <div className="topbar-left">
-                <div className="breadcrumb">
-                  <span className="breadcrumb-title" style={{cursor: 'pointer'}} onClick={() => setCurrentView('list')}>Templates</span>
-                  <div className="divider"></div>
-                  <span className="breadcrumb-title" style={{color: '#2563eb'}}>{activeTemplate.name}</span>
+                <div className="breadcrumb" style={{cursor: 'pointer', color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => setCurrentView('list')}>
+                  &larr; All templates
                 </div>
               </div>
               <div className="topbar-right">
                 <div className="topbar-actions">
-                  <button className="btn-primary" onClick={() => setCurrentView('list')}>Save Template</button>
-                  <div className="avatar"><img src="https://ui-avatars.com/api/?name=Admin&background=cbd5e1" alt="User" style={{width: '100%'}}/></div>
+                  <button className="btn-cancel-step" style={{border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem 1rem', background: '#ffffff', color: '#0f172a', fontWeight: '600'}} onClick={() => setCurrentView('list')}>Cancel</button>
+                  <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 1.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => setCurrentView('list')}><SaveIcon size={16} /> Save</button>
                 </div>
               </div>
             </header>
 
             <div className="workspace">
               <div className="workspace-inner">
+                {/* Top Info Card */}
+                <div className="step-card" style={{marginBottom: '1.5rem', padding: '1.5rem'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem'}}>
+                    <div className="step-icon-box" style={{backgroundColor: '#fffbeb', border: '1px solid #e2e8f0', width: '48px', height: '48px'}}><SparkIcon size={24} fill="#f59e0b" color="#f59e0b" /></div>
+                    <input type="text" className="text-input" style={{marginBottom: 0, flex: 1, fontWeight: '600', fontSize: '1.1rem'}} value={activeTemplate.name} onChange={e => setActiveTemplate({...activeTemplate, name: e.target.value})} placeholder="Template name" />
+                    <div className="toggle-wrap" style={{backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.5rem 1rem', borderRadius: '8px'}}>
+                      Active
+                      <div className={`toggle-pill ${activeTemplate.active ? 'active' : ''}`} onClick={() => setActiveTemplate({...activeTemplate, active: !activeTemplate.active})}>
+                        <div className="toggle-circle"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <label className="input-label">CATEGORIES</label>
+                  <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>
+                    {categories.map(cat => {
+                      const isActive = (activeTemplate.categoryIds || []).includes(cat.id);
+                      return (
+                        <div 
+                          key={cat.id} 
+                          className={`category-pill ${isActive ? 'active' : ''}`}
+                          onClick={() => handleToggleCategory(cat.id)}
+                        >
+                          {cat.name}
+                        </div>
+                      );
+                    })}
+                    <button className="btn-cancel-step" style={{border: '1px solid #e2e8f0', background: 'white', borderRadius: '20px', padding: '0.4rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} onClick={() => setCurrentView('list')} >+ Manage categories</button>
+                  </div>
+                </div>
+
+                {/* Base Prompt Card */}
+                <div className="step-card" style={{marginBottom: '3rem', padding: '1.5rem', backgroundColor: '#f8fafc'}}>
+                  <h3 style={{fontSize: '1rem', fontWeight: '700', color: '#0f172a', margin: '0 0 0.25rem 0'}}>Base Prompt</h3>
+                  <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0 0 1rem 0'}}>Sits on top of the God Prompt for this template.</p>
+                  <textarea className="textarea-input" style={{minHeight: '160px', marginBottom: 0, backgroundColor: '#ffffff'}} placeholder="Type base prompt here..."></textarea>
+                </div>
+
                 <div className="workflow-steps-container">
                   {steps.map((step, index) => (
                     <div key={step.id} className="roadmap-step-container">
