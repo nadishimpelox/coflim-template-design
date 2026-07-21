@@ -14,10 +14,10 @@ const Admin = () => {
 
   // Templates State
   const [templates, setTemplates] = useState([
-    { id: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] },
-    { id: 2, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] },
-    { id: 3, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] },
-    { id: 4, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] }
+    { id: 1, groupId: 1, version: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [], steps: [] },
+    { id: 2, groupId: 2, version: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [], steps: [] },
+    { id: 3, groupId: 3, version: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [], steps: [] },
+    { id: 4, groupId: 4, version: 1, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [], steps: [] }
   ]);
   
   const [activeTemplate, setActiveTemplate] = useState(templates[0]);
@@ -38,7 +38,7 @@ const Admin = () => {
   const [steps, setSteps] = useState([
     { 
       id: 1, type: 'audio', title: 'Audio Configuration', desc: 'Step 01', 
-      instruction: 'Please upload your audio file...', outputType: 'text', required: true
+      instruction: 'Please upload your audio file...', outputType: ['text'], required: true
     }
   ]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -46,6 +46,8 @@ const Admin = () => {
   const [wizardType, setWizardType] = useState('question'); 
   const [newActionInput, setNewActionInput] = useState('');
   const [stepToDelete, setStepToDelete] = useState(null);
+  const [selectedGroupForVersions, setSelectedGroupForVersions] = useState(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const handleToggleCategory = (categoryId) => {
     const currentIds = activeTemplate.categoryIds || [];
@@ -61,7 +63,8 @@ const Admin = () => {
   };
   const handleDuplicateTemplate = (template) => {
     const newId = templates.length > 0 ? Math.max(...templates.map(t => t.id)) + 1 : 1;
-    setTemplates([...templates, { ...template, id: newId, name: `${template.name} (Copy)` }]);
+    const newGroupId = templates.length > 0 ? Math.max(...templates.map(t => t.groupId || 0)) + 1 : 1;
+    setTemplates([...templates, { ...template, id: newId, groupId: newGroupId, version: 1, active: true, name: `${template.name} (Copy)` }]);
   };
   const handleDeleteTemplate = (id) => {
     setTemplates(templates.filter(t => t.id !== id));
@@ -69,10 +72,48 @@ const Admin = () => {
   const handleCreateTemplate = () => {
     setSteps([]); // Start with an empty workflow
     const newId = templates.length > 0 ? Math.max(...templates.map(t => t.id)) + 1 : 1;
-    const newTemplate = { id: newId, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [] };
-    setTemplates([...templates, newTemplate]);
+    const newGroupId = templates.length > 0 ? Math.max(...templates.map(t => t.groupId || 0)) + 1 : 1;
+    const newTemplate = { id: newId, groupId: newGroupId, version: 1, isDraft: true, name: 'Untitled template', categories: '-', blocks: '-', active: true, categoryIds: [], steps: [] };
     setActiveTemplate(newTemplate);
     setCurrentView('builder');
+  };
+
+  const handleEditTemplate = (template) => {
+    setSteps(template.steps || []);
+    setActiveTemplate(template);
+    setIsReadOnly(false);
+    setCurrentView('builder');
+  };
+
+  const handleSaveTemplate = () => {
+    if (activeTemplate.isDraft) {
+      // First time saving a new template
+      const newTemplate = { ...activeTemplate, isDraft: false, steps: steps };
+      setTemplates([...templates, newTemplate]);
+      setActiveTemplate(newTemplate);
+    } else {
+      // Saving an existing template creates a new version
+      const newId = Math.max(...templates.map(t => t.id)) + 1;
+      const currentGroupId = activeTemplate.groupId;
+      const groupTemplates = templates.filter(t => t.groupId === currentGroupId);
+      const maxVersion = Math.max(...groupTemplates.map(t => t.version || 1));
+      
+      const newVersionTemplate = {
+        ...activeTemplate,
+        id: newId,
+        version: maxVersion + 1,
+        active: true,
+        steps: steps
+      };
+      
+      const updatedTemplates = templates.map(t => 
+        t.groupId === currentGroupId ? { ...t, active: false } : t
+      );
+      
+      setTemplates([...updatedTemplates, newVersionTemplate]);
+      setActiveTemplate(newVersionTemplate);
+    }
+    setCurrentView('list');
   };
 
   // --- Categories CRUD Logic ---
@@ -107,7 +148,7 @@ const Admin = () => {
       'audio': 'Audio Configuration', 'video': 'Video Configuration', 'docs': 'Docs Configuration',
       'action': 'Action Options', 'question': 'Question Configuration', 'prompt': 'Prompt Configuration', 'link': 'Link Configuration'
     };
-    let newStep = { id: newId, type: wizardType, title: titleMap[wizardType] || 'Configuration', desc: `Step 0${newId}`, instruction: wizardInstruction, outputType: 'text', required: false };
+    let newStep = { id: newId, type: wizardType, title: titleMap[wizardType] || 'Configuration', desc: `Step 0${newId}`, instruction: wizardInstruction, outputType: ['text'], required: false };
     if (wizardType === 'action') newStep.actionsList = [];
     if (wizardType === 'prompt') { newStep.promptText = ''; newStep.outputDestination = 'chat'; }
     if (wizardType === 'question') { newStep.answerType = 'text'; newStep.choices = [{id: 1, text: 'Option 1'}, {id: 2, text: 'Option 2'}]; }
@@ -115,33 +156,43 @@ const Admin = () => {
     setSteps([...steps, newStep]); setIsWizardOpen(false); setWizardInstruction(''); setWizardType('question');
   };
 
-  const ExpectedOutputSection = ({ step }) => (
+  const handleToggleExpectedOutput = (stepId, type) => {
+    const step = steps.find(s => s.id === stepId);
+    if (!step) return;
+    const current = Array.isArray(step.outputType) ? step.outputType : [step.outputType].filter(Boolean);
+    const newTypes = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+    handleUpdateStep(stepId, 'outputType', newTypes);
+  };
+
+  const ExpectedOutputSection = ({ step }) => {
+    const isSelected = (type) => Array.isArray(step.outputType) ? step.outputType.includes(type) : step.outputType === type;
+    return (
     <div style={{ marginTop: '2rem' }}>
       <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Expected Output</label>
       <div className="expected-output-grid">
-        <label className={`expected-tile ${step.outputType === 'text' ? 'active' : ''}`} onClick={() => handleUpdateStep(step.id, 'outputType', 'text')}>
-          <input type="radio" checked={step.outputType === 'text'} readOnly style={{display: 'none'}} />
+        <label className={`expected-tile ${isSelected('text') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleExpectedOutput(step.id, 'text'); }}>
+          <input type="checkbox" checked={isSelected('text')} readOnly style={{display: 'none'}} />
           <FileText size={18} className="expected-tile-icon" />
           <div><div className="expected-tile-title">Text</div><div className="expected-tile-sub">Manual entry</div></div>
         </label>
-        <label className={`expected-tile ${step.outputType === 'image' ? 'active' : ''}`} onClick={() => handleUpdateStep(step.id, 'outputType', 'image')}>
-          <input type="radio" checked={step.outputType === 'image'} readOnly style={{display: 'none'}} />
+        <label className={`expected-tile ${isSelected('image') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleExpectedOutput(step.id, 'image'); }}>
+          <input type="checkbox" checked={isSelected('image')} readOnly style={{display: 'none'}} />
           <FileImage size={18} className="expected-tile-icon" />
           <div><div className="expected-tile-title">Image</div><div className="expected-tile-sub">Visual Data</div></div>
         </label>
-        <label className={`expected-tile ${step.outputType === 'video' ? 'active' : ''}`} onClick={() => handleUpdateStep(step.id, 'outputType', 'video')}>
-          <input type="radio" checked={step.outputType === 'video'} readOnly style={{display: 'none'}} />
+        <label className={`expected-tile ${isSelected('video') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleExpectedOutput(step.id, 'video'); }}>
+          <input type="checkbox" checked={isSelected('video')} readOnly style={{display: 'none'}} />
           <Video size={18} className="expected-tile-icon" />
           <div><div className="expected-tile-title">Video</div><div className="expected-tile-sub">Motion clips</div></div>
         </label>
-        <label className={`expected-tile ${step.outputType === 'chips' ? 'active' : ''}`} onClick={() => handleUpdateStep(step.id, 'outputType', 'chips')}>
-          <input type="radio" checked={step.outputType === 'chips'} readOnly style={{display: 'none'}} />
+        <label className={`expected-tile ${isSelected('chips') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleExpectedOutput(step.id, 'chips'); }}>
+          <input type="checkbox" checked={isSelected('chips')} readOnly style={{display: 'none'}} />
           <FileCode size={18} className="expected-tile-icon" />
           <div><div className="expected-tile-title">Chips</div><div className="expected-tile-sub">Interactive</div></div>
         </label>
       </div>
     </div>
-  );
+  )};
 
   const Sidebar = () => (
     <aside className="sidebar">
@@ -188,16 +239,25 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {templates.map(t => (
-                        <tr key={t.id}>
+                      {Object.values(templates.reduce((acc, t) => {
+                        if (!acc[t.groupId]) {
+                          acc[t.groupId] = t;
+                        } else if (t.active) {
+                          acc[t.groupId] = t; // Active version overrides
+                        } else if (!acc[t.groupId].active && t.version > acc[t.groupId].version) {
+                          acc[t.groupId] = t; // Higher version overrides if neither is active
+                        }
+                        return acc;
+                      }, {})).map(t => (
+                        <tr key={t.id} onClick={() => { setSelectedGroupForVersions(t.groupId); setCurrentView('versions'); }} style={{cursor: 'pointer'}}>
                           <td>
                             <div className="cell-name">
                               <SparkIcon size={16} className="cell-name-icon" fill="#f59e0b" />
-                              {t.name}
+                              {t.name} <span style={{fontSize: '0.75rem', color: '#64748b', marginLeft: '0.5rem', backgroundColor: '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: '4px'}}>v{t.version}</span>
                             </div>
                           </td>
                           <td style={{color: '#94a3b8'}}>{t.categories}</td>
-                          <td style={{color: '#94a3b8'}}>{t.blocks}</td>
+                          <td style={{color: '#94a3b8'}}>{t.steps ? t.steps.length : t.blocks}</td>
                           <td>
                             <div className={`toggle-pill ${t.active ? 'active' : ''}`} onClick={() => handleToggleTemplateActive(t.id)}>
                               <div className="toggle-circle"></div>
@@ -205,9 +265,7 @@ const Admin = () => {
                           </td>
                           <td>
                             <div className="cell-actions" style={{justifyContent: 'flex-end'}}>
-                              <Edit2 size={16} className="cell-action-icon" onClick={() => { setActiveTemplate(t); setCurrentView('builder'); }} />
-                              <Copy size={16} className="cell-action-icon" onClick={() => handleDuplicateTemplate(t)} />
-                              <Trash2 size={16} className="cell-action-icon delete" onClick={() => handleDeleteTemplate(t.id)} />
+                              <Trash2 size={16} className="cell-action-icon delete" onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id); }} />
                             </div>
                           </td>
                         </tr>
@@ -264,6 +322,61 @@ const Admin = () => {
               )}
 
 
+
+            </div>
+          </div>
+        ) : currentView === 'versions' ? (
+          <div className="workspace" style={{background: '#ffffff'}}>
+            <div className="template-list-container">
+              <header className="topbar" style={{padding: '0 0 1.5rem 0', background: 'transparent', borderBottom: 'none'}}>
+                <div className="breadcrumb" style={{cursor: 'pointer', color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => setCurrentView('list')}>
+                  &larr; Back to templates
+                </div>
+              </header>
+              <h1 className="template-list-title" style={{marginBottom: '0.5rem'}}>Version History</h1>
+              <p className="template-list-subtitle" style={{marginBottom: '2rem'}}>Manage and view past configurations for this template.</p>
+              
+              <table className="template-table">
+                <thead>
+                  <tr>
+                    <th>VERSION</th><th>BLOCKS</th><th>STATUS</th><th style={{textAlign: 'right'}}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.filter(t => t.groupId === selectedGroupForVersions).sort((a, b) => b.version - a.version).map(t => {
+                    const isLatest = Math.max(...templates.filter(temp => temp.groupId === selectedGroupForVersions).map(temp => temp.version)) === t.version;
+                    return (
+                    <tr key={t.id}>
+                      <td>
+                        <div className="cell-name">
+                          <SparkIcon size={16} className="cell-name-icon" fill="#f59e0b" />
+                          Version {t.version}
+                        </div>
+                      </td>
+                      <td style={{color: '#94a3b8'}}>{t.steps ? t.steps.length : t.blocks}</td>
+                      <td>
+                        {t.active ? <span style={{fontSize: '0.75rem', padding: '0.2rem 0.6rem', backgroundColor: '#10b981', color: 'white', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold'}}>Live</span> : <span style={{fontSize: '0.75rem', padding: '0.2rem 0.6rem', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold'}}>Archived</span>}
+                      </td>
+                      <td>
+                        <div className="cell-actions" style={{justifyContent: 'flex-end'}}>
+                          <button className="btn-secondary" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem', borderRadius: '6px', marginRight: '0.5rem'}} onClick={() => {
+                             setSteps(t.steps || []);
+                             setActiveTemplate(t);
+                             setIsReadOnly(true);
+                             setCurrentView('builder');
+                          }}>View</button>
+                          
+                          {isLatest && (
+                             <button className="btn-primary" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem', borderRadius: '6px'}} onClick={() => {
+                               handleEditTemplate(t);
+                             }}>Edit</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )})}
+                </tbody>
+              </table>
             </div>
           </div>
         ) : (
@@ -271,19 +384,30 @@ const Admin = () => {
           <>
             <header className="topbar">
               <div className="topbar-left">
-                <div className="breadcrumb" style={{cursor: 'pointer', color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => setCurrentView('list')}>
-                  &larr; All templates
+                <div className="breadcrumb" style={{cursor: 'pointer', color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => setCurrentView(isReadOnly ? 'versions' : 'list')}>
+                  &larr; {isReadOnly ? 'Back to versions' : 'All templates'}
                 </div>
               </div>
               <div className="topbar-right">
                 <div className="topbar-actions">
-                  <button className="btn-cancel-step" style={{border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem 1rem', background: '#ffffff', color: '#0f172a', fontWeight: '600'}} onClick={() => setCurrentView('list')}>Cancel</button>
-                  <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 1.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={() => setCurrentView('list')}><SaveIcon size={16} /> Save</button>
+                  <div style={{color: '#64748b', fontSize: '0.85rem', marginRight: '1rem'}}>
+                    {isReadOnly ? 'Viewing' : 'Editing'}: <span style={{fontWeight: '600', color: '#0f172a'}}>v{activeTemplate.version}</span>
+                  </div>
+                  {isReadOnly ? (
+                    <div style={{color: '#ef4444', fontSize: '0.85rem', fontWeight: '600', padding: '0.5rem 1rem', backgroundColor: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2'}}>
+                      Read-Only Mode
+                    </div>
+                  ) : (
+                    <>
+                      <button className="btn-cancel-step" style={{border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem 1rem', background: '#ffffff', color: '#0f172a', fontWeight: '600'}} onClick={() => setCurrentView('list')}>Cancel</button>
+                      <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 1.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem'}} onClick={handleSaveTemplate}><SaveIcon size={16} /> {activeTemplate.isDraft ? 'Save' : `Save as v${activeTemplate.version + 1}`}</button>
+                    </>
+                  )}
                 </div>
               </div>
             </header>
 
-            <div className="workspace">
+            <div className="workspace" style={isReadOnly ? { pointerEvents: 'none', opacity: 0.7 } : {}}>
               <div className="workspace-inner">
                 {/* Top Info Card */}
                 <div className="step-card" style={{marginBottom: '1.5rem', padding: '1.5rem'}}>
