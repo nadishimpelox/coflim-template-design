@@ -1,0 +1,338 @@
+.user-container {
+  background-color: #fafafa;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: #333;
+}
+
+/* User Header */
+.user-top-banner {
+  background: linear-gradient(90deg, #fef3c7, #ffedd5);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pickup-banner {
+  background: white;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem auto;
+  max-width: 800px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.pickup-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.pickup-icon {
+  background: #f3e8ff;
+  color: #a855f7;
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+.pickup-text {
+  font-size: 0.9rem;
+}
+.pickup-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.user-nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  margin-bottom: 2rem;
+}
+.board-tabs {
+  display: flex;
+  gap: 1rem;
+}
+.board-tab {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.board-tab.active {
+  border-color: #333;
+}
+.only-you {
+  font-size: 0.9rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.user-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 4rem 1rem;
+}
+
+.link-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.link-bubble {
+  background: #f0f7ff;
+  color: #3b82f6;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+.link-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.icon-btn {
+  background: white;
+  border: 1px solid #eaeaea;
+  padding: 0.4rem;
+  border-radius: 6px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Video Stats Card */
+.video-card {
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  display: flex;
+  gap: 2rem;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 1.5rem;
+}
+
+.video-player-mock {
+  width: 220px;
+  height: 380px;
+  background: black;
+  border-radius: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-top-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.talking-head-pill {
+  background: rgba(255,255,255,0.2);
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+}
+.play-btn-circle {
+  width: 50px;
+  height: 50px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-details {
+  flex: 1;
+}
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.ig-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+.account-name {
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.account-platform {
+  font-size: 0.7rem;
+  color: #888;
+  letter-spacing: 0.5px;
+}
+.video-type {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.meta-chips {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+.meta-chip {
+  background: #f5f5f5;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.stats-grid {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.stat-box {
+  flex: 1;
+  background: #f9f9f9;
+  border: 1px solid #eaeaea;
+  border-radius: 12px;
+  padding: 1rem;
+}
+.stat-box.alert {
+  background: #fff5f5;
+  border-color: #fecdd3;
+}
+.stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111;
+}
+.stat-sub {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 0.2rem;
+  font-weight: 500;
+}
+
+.link-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f5f5f5;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+/* Action Chips (Templates) */
+.action-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.action-chip {
+  background: white;
+  border: 1px solid #eaeaea;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.action-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+}
+
+/* Prompt Input */
+.prompt-area {
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.prompt-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  resize: none;
+  min-height: 40px;
+}
+.prompt-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 1rem;
+}
+.prompt-tools {
+  display: flex;
+  gap: 0.5rem;
+}
+.tool-chip {
+  background: #f5f5f5;
+  padding: 0.3rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #555;
+}
+.send-btn {
+  background: #111;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
