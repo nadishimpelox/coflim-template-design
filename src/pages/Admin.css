@@ -125,6 +125,42 @@
 .workflow-desc { color: #64748b; font-size: 0.95rem; }
 .workflow-steps-container { display: flex; flex-direction: column; gap: 1.5rem; }
 
+/* Roadmap Timeline */
+.roadmap-step-container {
+  display: flex;
+  gap: 1.5rem;
+}
+.roadmap-timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 1rem;
+}
+.roadmap-circle {
+  width: 32px;
+  height: 32px;
+  background-color: #2563eb;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  z-index: 1;
+}
+.roadmap-line {
+  flex: 1;
+  width: 3px;
+  background-color: #2563eb;
+  margin-top: 0.5rem;
+  margin-bottom: -1rem; /* Connect to next step */
+}
+.roadmap-content {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Step Card UI Redesign */
 .step-card {
   background: #ffffff;

@@ -272,8 +272,13 @@ const Admin = () => {
             <div className="workspace">
               <div className="workspace-inner">
                 <div className="workflow-steps-container">
-                  {steps.map((step) => (
-                    <div key={step.id} className="step-card">
+                  {steps.map((step, index) => (
+                    <div key={step.id} className="roadmap-step-container">
+                      <div className="roadmap-timeline">
+                        <div className="roadmap-circle">{index + 1}</div>
+                        <div className="roadmap-line"></div>
+                      </div>
+                      <div className="step-card roadmap-content">
                       <div className="step-header">
                         <div className="step-header-left">
                           <div><div className="step-title">{step.title}</div><div className="step-subtitle">{step.desc}</div></div>
@@ -348,14 +353,19 @@ const Admin = () => {
                         </div>
                         <button className="btn-primary" style={{padding: '0.6rem 1.5rem'}}>Save Step</button>
                       </div>
+                      </div>
                     </div>
                   ))}
 
                   {/* Add New Step Wizard */}
                   {isWizardOpen ? (
-                    <div className="wizard-card">
-                      <div className="wizard-title">Add New Step</div>
-                      <div className="wizard-subtitle">Select the type of step you want to add to your template.</div>
+                    <div className="roadmap-step-container">
+                      <div className="roadmap-timeline">
+                        <div className="roadmap-circle" style={{backgroundColor: '#0f172a'}}><Plus size={18} /></div>
+                      </div>
+                      <div className="wizard-card roadmap-content" style={{marginTop: 0}}>
+                        <div className="wizard-title">Add New Step</div>
+                        <div className="wizard-subtitle">Select the type of step you want to add to your template.</div>
                       
                       <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Step Instruction</label>
                       <input type="text" className="text-input" placeholder="e.g., Please enter your name..." value={wizardInstruction} onChange={e => setWizardInstruction(e.target.value)} />
@@ -379,12 +389,18 @@ const Admin = () => {
                         <button className="btn-cancel-step" onClick={() => setIsWizardOpen(false)} style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontWeight: 500}}>Cancel</button>
                         <button className="btn-primary" onClick={handleWizardSubmit}>Continue to Config</button>
                       </div>
+                      </div>
                     </div>
                   ) : (
-                    <div style={{display: 'flex', justifyContent: 'center', marginTop: '1rem'}}>
-                      <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 2rem'}} onClick={() => setIsWizardOpen(true)}>
-                         Add Step
-                      </button>
+                    <div className="roadmap-step-container">
+                      <div className="roadmap-timeline">
+                        <div className="roadmap-circle" style={{backgroundColor: '#0f172a'}}><Plus size={18} /></div>
+                      </div>
+                      <div className="roadmap-content" style={{display: 'flex', alignItems: 'center'}}>
+                        <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 2rem'}} onClick={() => setIsWizardOpen(true)}>
+                           Add Step
+                        </button>
+                      </div>
                     </div>
                   )}
                   
