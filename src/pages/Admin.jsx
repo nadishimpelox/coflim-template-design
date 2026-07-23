@@ -37,17 +37,22 @@ const Admin = () => {
   // Builder Steps State
   const [steps, setSteps] = useState([
     { 
-      id: 1, type: 'audio', title: 'Audio Configuration', desc: 'Step 01', 
-      instruction: 'Please upload your audio file...', outputType: ['text'], required: true
+      id: 1, title: 'Step 01', desc: 'Step 01', required: true,
+      items: [
+        { id: 1, type: 'audio', instruction: 'Please upload your audio file...', outputType: ['text'] }
+      ]
     }
   ]);
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardInstruction, setWizardInstruction] = useState('');
-  const [wizardType, setWizardType] = useState('question'); 
   const [newActionInput, setNewActionInput] = useState('');
   const [stepToDelete, setStepToDelete] = useState(null);
   const [selectedGroupForVersions, setSelectedGroupForVersions] = useState(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [draggedStepIndex, setDraggedStepIndex] = useState(null);
+  const [dragOverStepIndex, setDragOverStepIndex] = useState(null);
+  const [expandedItemIds, setExpandedItemIds] = useState({});
+  const [draggedItem, setDraggedItem] = useState(null); // { stepId, qIndex }
+  const [dragOverItem, setDragOverItem] = useState(null); // { stepId, qIndex }
+  const [itemWizardOpenForStep, setItemWizardOpenForStep] = useState(null);
 
   const handleToggleCategory = (categoryId) => {
     const currentIds = activeTemplate.categoryIds || [];
@@ -140,20 +145,96 @@ const Admin = () => {
   const handleDeleteStep = (id) => setStepToDelete(id);
   const confirmDeleteStep = () => { setSteps(steps.filter(s => s.id !== stepToDelete)); setStepToDelete(null); };
   const handleUpdateStep = (id, field, value) => setSteps(steps.map(s => s.id === id ? { ...s, [field]: value } : s));
+  
+  const handleAddItem = (stepId, type) => {
+    const step = steps.find(s => s.id === stepId);
+    if (!step) return;
+    const items = step.items || [];
+    const newId = items.length > 0 ? Math.max(...items.map(q => q.id)) + 1 : 1;
+    
+    let newItem = { id: newId, type: type, outputType: ['text'] };
+    if (type === 'question') { newItem.text = ''; newItem.choices = []; }
+    if (type === 'action') { newItem.actionsList = []; }
+    if (type === 'prompt') { newItem.promptText = ''; newItem.outputDestination = 'chat'; }
+    if (type === 'link') { newItem.url = ''; }
+    
+    const newItems = [...items, newItem];
+    handleUpdateStep(stepId, 'items', newItems);
+    setExpandedItemIds(prev => ({ ...prev, [stepId]: newId }));
+    setItemWizardOpenForStep(null);
+  };
+
+  const handleUpdateItem = (stepId, itemId, field, value) => {
+    const step = steps.find(s => s.id === stepId);
+    if (!step) return;
+    const newItems = (step.items || []).map(q => q.id === itemId ? { ...q, [field]: value } : q);
+    handleUpdateStep(stepId, 'items', newItems);
+  };
+
+  const handleItemDragStart = (e, stepId, qIndex) => {
+    e.stopPropagation();
+    setDraggedItem({ stepId, qIndex });
+  };
+
+  const handleItemDragOver = (e, stepId, qIndex) => {
+    e.preventDefault(); 
+    e.stopPropagation();
+    setDragOverItem({ stepId, qIndex });
+  };
+
+  const handleItemDrop = (e, stepId) => {
+    e.stopPropagation();
+    if (!draggedItem || !dragOverItem || draggedItem.stepId !== stepId || dragOverItem.stepId !== stepId) {
+      setDraggedItem(null);
+      setDragOverItem(null);
+      return;
+    }
+    if (draggedItem.qIndex === dragOverItem.qIndex) {
+      setDraggedItem(null);
+      setDragOverItem(null);
+      return;
+    }
+
+    const step = steps.find(s => s.id === stepId);
+    if (!step) return;
+
+    const newItems = [...(step.items || [])];
+    const item = newItems[draggedItem.qIndex];
+    newItems.splice(draggedItem.qIndex, 1);
+    newItems.splice(dragOverItem.qIndex, 0, item);
+
+    handleUpdateStep(stepId, 'items', newItems);
+    setDraggedItem(null);
+    setDragOverItem(null);
+  };
+
+
   const handleToggleRequired = (id) => setSteps(steps.map(s => s.id === id ? { ...s, required: !s.required } : s));
   
-  const handleWizardSubmit = () => {
+  const handleSortSteps = () => {
+    if (draggedStepIndex === null || dragOverStepIndex === null || draggedStepIndex === dragOverStepIndex) {
+      setDraggedStepIndex(null);
+      setDragOverStepIndex(null);
+      return;
+    }
+    const newSteps = [...steps];
+    const draggedStep = newSteps[draggedStepIndex];
+    newSteps.splice(draggedStepIndex, 1);
+    newSteps.splice(dragOverStepIndex, 0, draggedStep);
+    
+    const updatedSteps = newSteps.map((s, idx) => ({
+      ...s,
+      desc: `Step 0${idx + 1}`
+    }));
+    setSteps(updatedSteps);
+    setDraggedStepIndex(null);
+    setDragOverStepIndex(null);
+  };
+  
+  const handleAddGenericStep = () => {
     const newId = steps.length > 0 ? Math.max(...steps.map(s => s.id)) + 1 : 1;
-    const titleMap = {
-      'audio': 'Audio Configuration', 'video': 'Video Configuration', 'docs': 'Docs Configuration',
-      'action': 'Action Options', 'question': 'Question Configuration', 'prompt': 'Prompt Configuration', 'link': 'Link Configuration'
-    };
-    let newStep = { id: newId, type: wizardType, title: titleMap[wizardType] || 'Configuration', desc: `Step 0${newId}`, instruction: wizardInstruction, outputType: ['text'], required: false };
-    if (wizardType === 'action') newStep.actionsList = [];
-    if (wizardType === 'prompt') { newStep.promptText = ''; newStep.outputDestination = 'chat'; }
-    if (wizardType === 'question') { newStep.answerType = 'text'; newStep.choices = [{id: 1, text: 'Option 1'}, {id: 2, text: 'Option 2'}]; }
-    if (wizardType === 'link') { newStep.url = ''; }
-    setSteps([...steps, newStep]); setIsWizardOpen(false); setWizardInstruction(''); setWizardType('question');
+    let newStep = { id: newId, title: `Step 0${newId}`, desc: `Step 0${newId}`, required: false, items: [] };
+    setSteps([...steps, newStep]);
   };
 
   const handleToggleExpectedOutput = (stepId, type) => {
@@ -186,6 +267,46 @@ const Admin = () => {
           <div><div className="expected-tile-title">Video</div><div className="expected-tile-sub">Motion clips</div></div>
         </label>
         <label className={`expected-tile ${isSelected('chips') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleExpectedOutput(step.id, 'chips'); }}>
+          <input type="checkbox" checked={isSelected('chips')} readOnly style={{display: 'none'}} />
+          <FileCode size={18} className="expected-tile-icon" />
+          <div><div className="expected-tile-title">Chips</div><div className="expected-tile-sub">Interactive</div></div>
+        </label>
+      </div>
+    </div>
+  )};
+
+  const handleToggleItemExpectedOutput = (stepId, itemId, type) => {
+    const step = steps.find(s => s.id === stepId);
+    if (!step) return;
+    const item = (step.items || []).find(q => q.id === itemId);
+    if (!item) return;
+    const current = Array.isArray(item.outputType) ? item.outputType : [item.outputType].filter(Boolean);
+    const newTypes = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+    handleUpdateItem(stepId, itemId, 'outputType', newTypes);
+  };
+
+  const ItemExpectedOutputSection = ({ step, item }) => {
+    const isSelected = (type) => Array.isArray(item.outputType) ? item.outputType.includes(type) : item.outputType === type;
+    return (
+    <div style={{ marginTop: '2rem' }}>
+      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Expected Output for this Item</label>
+      <div className="expected-output-grid">
+        <label className={`expected-tile ${isSelected('text') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleItemExpectedOutput(step.id, item.id, 'text'); }}>
+          <input type="checkbox" checked={isSelected('text')} readOnly style={{display: 'none'}} />
+          <FileText size={18} className="expected-tile-icon" />
+          <div><div className="expected-tile-title">Text</div><div className="expected-tile-sub">Manual entry</div></div>
+        </label>
+        <label className={`expected-tile ${isSelected('image') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleItemExpectedOutput(step.id, item.id, 'image'); }}>
+          <input type="checkbox" checked={isSelected('image')} readOnly style={{display: 'none'}} />
+          <FileImage size={18} className="expected-tile-icon" />
+          <div><div className="expected-tile-title">Image</div><div className="expected-tile-sub">Visual Data</div></div>
+        </label>
+        <label className={`expected-tile ${isSelected('video') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleItemExpectedOutput(step.id, item.id, 'video'); }}>
+          <input type="checkbox" checked={isSelected('video')} readOnly style={{display: 'none'}} />
+          <Video size={18} className="expected-tile-icon" />
+          <div><div className="expected-tile-title">Video</div><div className="expected-tile-sub">Motion clips</div></div>
+        </label>
+        <label className={`expected-tile ${isSelected('chips') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleToggleItemExpectedOutput(step.id, item.id, 'chips'); }}>
           <input type="checkbox" checked={isSelected('chips')} readOnly style={{display: 'none'}} />
           <FileCode size={18} className="expected-tile-icon" />
           <div><div className="expected-tile-title">Chips</div><div className="expected-tile-sub">Interactive</div></div>
@@ -449,7 +570,32 @@ const Admin = () => {
 
                 <div className="workflow-steps-container">
                   {steps.map((step, index) => (
-                    <div key={step.id} className="roadmap-step-container">
+                    <div 
+                      key={step.id} 
+                      className="roadmap-step-container"
+                      draggable={!isReadOnly}
+                      onDragStart={(e) => {
+                        if (isReadOnly) return;
+                        setDraggedStepIndex(index);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnter={() => {
+                        if (isReadOnly) return;
+                        setDragOverStepIndex(index);
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleSortSteps}
+                      onDragEnd={() => {
+                        setDraggedStepIndex(null);
+                        setDragOverStepIndex(null);
+                      }}
+                      style={{
+                        opacity: draggedStepIndex === index ? 0.5 : 1,
+                        border: dragOverStepIndex === index && draggedStepIndex !== index ? '2px dashed #3b82f6' : 'none',
+                        borderRadius: '12px',
+                        transition: 'opacity 0.2s, border 0.2s'
+                      }}
+                    >
                       <div className="roadmap-timeline">
                         <div className="roadmap-circle">{index + 1}</div>
                         <div className="roadmap-line"></div>
@@ -474,127 +620,223 @@ const Admin = () => {
                               <div className="toggle-circle"></div>
                             </div>
                           </div>
-                          <GripVertical size={20} className="step-menu-icon" />
+                          <GripVertical size={20} className="step-menu-icon" style={{ cursor: isReadOnly ? 'default' : 'grab' }} />
                         </div>
                       </div>
 
-                      {step.type !== 'action' && (
-                        <>
-                          <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Step Instruction (e.g., Question for User)</label>
-                          <textarea className="textarea-input" value={step.instruction} onChange={(e) => handleUpdateStep(step.id, 'instruction', e.target.value)} placeholder="e.g., Please enter your name..." style={{marginBottom: 0, minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem'}} />
-                        </>
-                      )}
-
-                      {/* QUESTION TYPES */}
-                      {step.type === 'question' && (
-                        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                          <div className="add-option-row" style={{marginBottom: '1rem', border: 'none', padding: 0}}>
-                            <div style={{flex: 1}}>
-                              <label className="input-label">ADD NEW OPTION</label>
-                              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Yes" id={`new-qopt-${step.id}`} onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && e.target.value.trim()) {
-                                    handleUpdateStep(step.id, 'choices', [...(step.choices||[]), {id: Date.now(), text: e.target.value.trim()}]);
-                                    e.target.value = '';
-                                  }
-                                }} />
-                                <button className="btn-secondary" onClick={() => {
-                                  const input = document.getElementById(`new-qopt-${step.id}`);
-                                  if (input && input.value.trim()) {
-                                    handleUpdateStep(step.id, 'choices', [...(step.choices||[]), {id: Date.now(), text: input.value.trim()}]);
-                                    input.value = '';
-                                  }
-                                }}>Add Option</button>
-                              </div>
-                            </div>
-                          </div>
+                      {/* Step Items Array Map */}
+                      <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                        {(step.items || []).map((item, qIndex) => {
+                          const isExpanded = expandedItemIds[step.id] === item.id;
+                          const isDragged = draggedItem?.stepId === step.id && draggedItem?.qIndex === qIndex;
+                          const isDragOver = dragOverItem?.stepId === step.id && dragOverItem?.qIndex === qIndex;
                           
-                          <div className="configured-choices">
-                            <label className="input-label">CONFIGURED CHOICES</label>
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                              {(step.choices || []).map(opt => (
-                                <div key={opt.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                                  <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><GripVertical size={16} color="#cbd5e1"/> {opt.text}</div>
-                                  <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateStep(step.id, 'choices', step.choices.filter(o => o.id !== opt.id))} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                          const itemTitles = {
+                            question: 'Question', prompt: 'Prompt', audio: 'Audio Upload', video: 'Video Upload',
+                            docs: 'Document Upload', action: 'Action', link: 'Link'
+                          };
 
-                      {/* UPLOAD TYPES */}
-                      {(step.type === 'audio' || step.type === 'video' || step.type === 'docs') && (
-                        <>
-                          <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>{step.type === 'audio' ? 'Audio Upload' : step.type === 'video' ? 'Video Upload' : 'Document Upload'}</label>
-                          <label className="upload-box" style={{display: 'block', cursor: 'pointer'}}>
-                            <input 
-                              type="file" 
-                              style={{display: 'none'}} 
-                              accept={step.type === 'audio' ? 'audio/*' : step.type === 'video' ? 'video/*' : '.pdf,.doc,.docx'} 
-                              onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                  handleUpdateStep(step.id, 'uploadedFile', e.target.files[0].name);
-                                }
+                          return (
+                            <div 
+                              key={item.id} 
+                              draggable
+                              onDragStart={(e) => handleItemDragStart(e, step.id, qIndex)}
+                              onDragOver={(e) => handleItemDragOver(e, step.id, qIndex)}
+                              onDrop={(e) => handleItemDrop(e, step.id)}
+                              onDragEnd={() => { setDraggedItem(null); setDragOverItem(null); }}
+                              style={{ 
+                                marginBottom: '1rem', 
+                                border: isDragOver ? '2px dashed #3b82f6' : '1px solid #e2e8f0', 
+                                borderRadius: '12px', 
+                                overflow: 'hidden', 
+                                backgroundColor: 'white',
+                                opacity: isDragged ? 0.5 : 1,
+                                transform: isDragged ? 'scale(0.98)' : 'scale(1)',
+                                transition: 'all 0.2s ease',
                               }}
-                            />
-                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                              <div className="upload-icon-circle">{step.type === 'audio' ? <Mic size={24} /> : step.type === 'video' ? <Play size={24} /> : <FileUp size={24} />}</div>
-                              <div className="upload-title">
-                                {step.uploadedFile ? <span style={{color: '#4f46e5', fontWeight: '600'}}>{step.uploadedFile}</span> : 'Click to upload or drag and drop'}
-                              </div>
-                              {!step.uploadedFile && <div className="upload-sub">Supported formats: {step.type === 'audio' ? 'MP3, WAV' : step.type === 'video' ? 'MP4, MOV' : 'PDF, DOCX'} (Max 200MB)</div>}
-                            </div>
-                          </label>
-                        </>
-                      )}
-
-                      {/* ACTION CHOICES */}
-                      {step.type === 'action' && (
-                        <>
-                          <div className="add-option-row">
-                            <div style={{flex: 1}}>
-                              <label className="input-label">ADD NEW OPTION</label>
-                              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Expand Content" value={newActionInput} onChange={(e) => setNewActionInput(e.target.value)} />
-                                <button className="btn-secondary" onClick={() => { if(newActionInput.trim()) { handleUpdateStep(step.id, 'actionsList', [...step.actionsList, {id: Date.now(), name: newActionInput, prompt: ''}]); setNewActionInput(''); }}}>Add Option</button>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="configured-choices">
-                            <label className="input-label">CONFIGURED CHOICES</label>
-                            <div className="action-choices-grid">
-                              {step.actionsList?.map(action => (
-                                <div key={action.id} className="action-card">
-                                  <div className="action-card-header">
-                                    <div className="action-card-left"><GripVertical size={16} color="#cbd5e1" /> {action.name}</div>
-                                    <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateStep(step.id, 'actionsList', step.actionsList.filter(a => a.id !== action.id))} />
-                                  </div>
-                                  <label className="action-card-prompt-label">📝 PROMPT / INSTRUCTION</label>
-                                  <textarea className="textarea-input" style={{marginBottom: 0, minHeight: '60px', padding: '0.5rem', fontSize: '0.8rem'}} placeholder="e.g. Rewrite the previous output..." value={action.prompt} onChange={(e) => handleUpdateStep(step.id, 'actionsList', step.actionsList.map(a => a.id === action.id ? {...a, prompt: e.target.value} : a))} />
+                            >
+                              {/* Accordion Header */}
+                              <div 
+                                style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'grab', backgroundColor: isExpanded ? '#f8fafc' : 'white', borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none' }}
+                                onClick={() => setExpandedItemIds(prev => ({ ...prev, [step.id]: isExpanded ? null : item.id }))}
+                              >
+                                <div style={{ fontWeight: '600', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <GripVertical size={16} color="#cbd5e1"/>
+                                  {itemTitles[item.type] || 'Item'} {qIndex + 1} {item.text ? `- ${item.text.substring(0, 30)}${item.text.length > 30 ? '...' : ''}` : ''}
                                 </div>
-                              ))}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                  {item.type === 'question' && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{item.choices?.length || 0} options</div>}
+                                  <button className="btn-secondary" style={{color: '#ef4444', borderColor: 'transparent', padding: '0.25rem 0.5rem', fontSize: '0.85rem'}} onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newItems = (step.items || []).filter(q => q.id !== item.id);
+                                    handleUpdateStep(step.id, 'items', newItems);
+                                  }}><Trash2 size={16} /></button>
+                                </div>
+                              </div>
+                              
+                              {/* Accordion Body */}
+                              {isExpanded && (
+                                <div style={{ padding: '1.5rem', backgroundColor: '#f8fafc' }}>
+                                  
+                                  {/* Text Area for Question or Prompt */}
+                                  {(item.type === 'question' || item.type === 'prompt') && (
+                                    <>
+                                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Instruction / Text</label>
+                                      <textarea className="textarea-input" value={item.text} onChange={(e) => handleUpdateItem(step.id, item.id, 'text', e.target.value)} placeholder={`e.g., Please enter your ${item.type}...`} style={{marginBottom: '1.5rem', minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem'}} />
+                                    </>
+                                  )}
+
+                                  {/* UPLOAD TYPES */}
+                                  {(item.type === 'audio' || item.type === 'video' || item.type === 'docs') && (
+                                    <>
+                                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>{item.type === 'audio' ? 'Audio Upload' : item.type === 'video' ? 'Video Upload' : 'Document Upload'}</label>
+                                      <label className="upload-box" style={{display: 'block', cursor: 'pointer', marginBottom: '1.5rem'}}>
+                                        <input 
+                                          type="file" 
+                                          style={{display: 'none'}} 
+                                          accept={item.type === 'audio' ? 'audio/*' : item.type === 'video' ? 'video/*' : '.pdf,.doc,.docx'} 
+                                          onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                              handleUpdateItem(step.id, item.id, 'uploadedFile', e.target.files[0].name);
+                                            }
+                                          }}
+                                        />
+                                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                                          <div className="upload-icon-circle">{item.type === 'audio' ? <Mic size={24} /> : item.type === 'video' ? <Play size={24} /> : <FileUp size={24} />}</div>
+                                          <div className="upload-title">
+                                            {item.uploadedFile ? <span style={{color: '#4f46e5', fontWeight: '600'}}>{item.uploadedFile}</span> : 'Click to upload or drag and drop'}
+                                          </div>
+                                          {!item.uploadedFile && <div className="upload-sub">Supported formats: {item.type === 'audio' ? 'MP3, WAV' : item.type === 'video' ? 'MP4, MOV' : 'PDF, DOCX'} (Max 200MB)</div>}
+                                        </div>
+                                      </label>
+                                    </>
+                                  )}
+
+                                  {/* OPTIONS BUILDER (For Questions) */}
+                                  {item.type === 'question' && (
+                                    <>
+                                      <div className="add-option-row" style={{marginBottom: '1rem', border: 'none', padding: 0}}>
+                                        <div style={{flex: 1}}>
+                                          <label className="input-label">ADD NEW OPTION</label>
+                                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                            <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Yes" id={`new-qopt-${step.id}-${item.id}`} onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && e.target.value.trim()) {
+                                                handleUpdateItem(step.id, item.id, 'choices', [...(item.choices||[]), {id: Date.now(), text: e.target.value.trim()}]);
+                                                e.target.value = '';
+                                              }
+                                            }} />
+                                            <button className="btn-secondary" onClick={() => {
+                                              const input = document.getElementById(`new-qopt-${step.id}-${item.id}`);
+                                              if (input && input.value.trim()) {
+                                                handleUpdateItem(step.id, item.id, 'choices', [...(item.choices||[]), {id: Date.now(), text: input.value.trim()}]);
+                                                input.value = '';
+                                              }
+                                            }}>Add Option</button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="configured-choices">
+                                        <label className="input-label">CONFIGURED CHOICES</label>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                                          {(item.choices || []).length === 0 && <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>No choices added yet.</div>}
+                                          {(item.choices || []).map(opt => (
+                                            <div key={opt.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><GripVertical size={16} color="#cbd5e1"/> {opt.text}</div>
+                                              <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateItem(step.id, item.id, 'choices', item.choices.filter(o => o.id !== opt.id))} />
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {/* ACTION CHOICES */}
+                                  {item.type === 'action' && (
+                                    <>
+                                      <div className="add-option-row">
+                                        <div style={{flex: 1}}>
+                                          <label className="input-label">ADD NEW OPTION</label>
+                                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                            <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Expand Content" id={`new-act-${step.id}-${item.id}`} />
+                                            <button className="btn-secondary" onClick={() => {
+                                              const input = document.getElementById(`new-act-${step.id}-${item.id}`);
+                                              if (input && input.value.trim()) {
+                                                handleUpdateItem(step.id, item.id, 'actionsList', [...(item.actionsList||[]), {id: Date.now(), name: input.value.trim(), prompt: ''}]);
+                                                input.value = '';
+                                              }
+                                            }}>Add Option</button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="configured-choices">
+                                        <label className="input-label">CONFIGURED CHOICES</label>
+                                        <div className="action-choices-grid">
+                                          {(item.actionsList||[]).map(action => (
+                                            <div key={action.id} className="action-card">
+                                              <div className="action-card-header">
+                                                <div className="action-card-left"><GripVertical size={16} color="#cbd5e1" /> {action.name}</div>
+                                                <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateItem(step.id, item.id, 'actionsList', item.actionsList.filter(a => a.id !== action.id))} />
+                                              </div>
+                                              <label className="action-card-prompt-label">📝 PROMPT / INSTRUCTION</label>
+                                              <textarea className="textarea-input" style={{marginBottom: 0, minHeight: '60px', padding: '0.5rem', fontSize: '0.8rem'}} placeholder="e.g. Rewrite the previous output..." value={action.prompt} onChange={(e) => handleUpdateItem(step.id, item.id, 'actionsList', item.actionsList.map(a => a.id === action.id ? {...a, prompt: e.target.value} : a))} />
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {/* ADMIN PRE-FILL ANSWER (for question, prompt, link) */}
+                                  {(item.type === 'question' || item.type === 'prompt' || item.type === 'link') && (
+                                    <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Admin Pre-filled Value / Answer</label>
+                                      <textarea 
+                                        className="textarea-input" 
+                                        placeholder={`Enter the default ${item.type} value here...`} 
+                                        value={item.adminAnswer || ''} 
+                                        onChange={(e) => handleUpdateItem(step.id, item.id, 'adminAnswer', e.target.value)} 
+                                        style={{marginBottom: 0, minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem', backgroundColor: 'white', border: '1px dashed #cbd5e1'}} 
+                                      />
+                                    </div>
+                                  )}
+
+                                  <ItemExpectedOutputSection step={step} item={item} />
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </>
-                      )}
+                          );
+                        })}
 
-                      {/* ADMIN PRE-FILL ANSWER (for question, prompt, link) */}
-                      {(step.type === 'question' || step.type === 'prompt' || step.type === 'link') && (
-                        <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
-                          <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Admin Pre-filled Value / Answer</label>
-                          <textarea 
-                            className="textarea-input" 
-                            placeholder={`Enter the default ${step.type} value here...`} 
-                            value={step.adminAnswer || ''} 
-                            onChange={(e) => handleUpdateStep(step.id, 'adminAnswer', e.target.value)} 
-                            style={{marginBottom: 0, minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem', backgroundColor: '#f8fafc', border: '1px dashed #cbd5e1'}} 
-                          />
-                        </div>
-                      )}
-
-                      <ExpectedOutputSection step={step} />
+                        {/* ADD ITEM WIZARD */}
+                        {itemWizardOpenForStep === step.id ? (
+                           <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#f8fafc', marginTop: '1rem' }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                               <div style={{ fontWeight: '600', color: '#0f172a' }}>Select Item Type</div>
+                               <button className="btn-secondary" style={{ border: 'none', background: 'none' }} onClick={() => setItemWizardOpenForStep(null)}>Cancel</button>
+                             </div>
+                             <div className="wizard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
+                                {['question', 'prompt', 'docs', 'video', 'audio', 'link', 'action'].map(t => (
+                                   <div key={t} className="wizard-tile" style={{ padding: '0.75rem', minHeight: 'auto' }} onClick={() => handleAddItem(step.id, t)}>
+                                     {t === 'question' && <QuestionIcon size={20} className="wizard-tile-icon" style={{marginBottom: '0.5rem'}} />}
+                                     {t === 'prompt' && <FileText size={20} className="wizard-tile-icon" style={{marginBottom: '0.5rem'}} />}
+                                     {t === 'docs' && <FileUp size={20} className="wizard-tile-icon" color="#eab308" style={{marginBottom: '0.5rem'}} />}
+                                     {t === 'video' && <Video size={20} className="wizard-tile-icon" color="#3b82f6" style={{marginBottom: '0.5rem'}} />}
+                                     {t === 'audio' && <Mic size={20} className="wizard-tile-icon" color="#a855f7" style={{marginBottom: '0.5rem'}} />}
+                                     {t === 'link' && <Link size={20} className="wizard-tile-icon" color="#94a3b8" style={{marginBottom: '0.5rem'}} />}
+                                     {t === 'action' && <Sparkles size={20} className="wizard-tile-icon" color="#ef4444" style={{marginBottom: '0.5rem'}} />}
+                                     <div className="wizard-tile-label" style={{textTransform: 'capitalize', fontSize: '0.75rem'}}>{t}</div>
+                                   </div>
+                                ))}
+                             </div>
+                           </div>
+                        ) : (
+                          <button className="btn-secondary" style={{width: '100%', borderStyle: 'dashed', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'}} onClick={() => setItemWizardOpenForStep(step.id)}>
+                            <Plus size={16} /> Add Item
+                          </button>
+                        )}
+                      </div>
 
                       {/* Step Footer */}
                       <div className="step-footer">
@@ -607,52 +849,16 @@ const Admin = () => {
                     </div>
                   ))}
 
-                  {/* Add New Step Wizard */}
-                  {isWizardOpen ? (
-                    <div className="roadmap-step-container">
-                      <div className="roadmap-timeline">
-                        <div className="roadmap-circle" style={{backgroundColor: '#0f172a'}}><Plus size={18} /></div>
-                      </div>
-                      <div className="wizard-card roadmap-content" style={{marginTop: 0}}>
-                        <div className="wizard-title">Add New Step</div>
-                        <div className="wizard-subtitle">Select the type of step you want to add to your template.</div>
-                      
-                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Step Instruction</label>
-                      <input type="text" className="text-input" placeholder="e.g., Please enter your name..." value={wizardInstruction} onChange={e => setWizardInstruction(e.target.value)} />
-                      
-                      <div className="wizard-grid">
-                        {['question', 'prompt', 'docs', 'video', 'audio', 'link', 'action'].map(t => (
-                           <div key={t} className={`wizard-tile ${wizardType === t ? 'selected' : ''}`} onClick={() => setWizardType(t)}>
-                             {t === 'question' && <QuestionIcon size={24} className="wizard-tile-icon" />}
-                             {t === 'prompt' && <FileText size={24} className="wizard-tile-icon" />}
-                             {t === 'docs' && <FileUp size={24} className="wizard-tile-icon" color="#eab308" />}
-                             {t === 'video' && <Video size={24} className="wizard-tile-icon" color="#3b82f6" />}
-                             {t === 'audio' && <Mic size={24} className="wizard-tile-icon" color="#a855f7" />}
-                             {t === 'link' && <Link size={24} className="wizard-tile-icon" color="#94a3b8" />}
-                             {t === 'action' && <Sparkles size={24} className="wizard-tile-icon" color="#ef4444" />}
-                             <div className="wizard-tile-label" style={{textTransform: 'capitalize'}}>{t}</div>
-                           </div>
-                        ))}
-                      </div>
-
-                      <div className="wizard-footer">
-                        <button className="btn-cancel-step" onClick={() => setIsWizardOpen(false)} style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontWeight: 500}}>Cancel</button>
-                        <button className="btn-primary" onClick={handleWizardSubmit}>Continue to Config</button>
-                      </div>
-                      </div>
+                  <div className="roadmap-step-container">
+                    <div className="roadmap-timeline">
+                      <div className="roadmap-circle" style={{backgroundColor: '#0f172a'}}><Plus size={18} /></div>
                     </div>
-                  ) : (
-                    <div className="roadmap-step-container">
-                      <div className="roadmap-timeline">
-                        <div className="roadmap-circle" style={{backgroundColor: '#0f172a'}}><Plus size={18} /></div>
-                      </div>
-                      <div className="roadmap-content" style={{display: 'flex', alignItems: 'center'}}>
-                        <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 2rem'}} onClick={() => setIsWizardOpen(true)}>
-                           Add Step
-                        </button>
-                      </div>
+                    <div className="roadmap-content" style={{display: 'flex', alignItems: 'center'}}>
+                      <button className="btn-primary" style={{backgroundColor: '#0f172a', padding: '0.6rem 2rem'}} onClick={handleAddGenericStep}>
+                         Add Step
+                      </button>
                     </div>
-                  )}
+                  </div>
                   
                 </div>
               </div>
