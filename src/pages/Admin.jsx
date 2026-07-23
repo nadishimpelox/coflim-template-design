@@ -39,7 +39,7 @@ const Admin = () => {
     { 
       id: 1, title: 'Step 01', desc: 'Step 01', required: true,
       items: [
-        { id: 1, type: 'audio', instruction: 'Please upload your audio file...', outputType: ['text'] }
+        { id: 1, type: 'upload', instruction: 'Please upload your file...', outputType: ['text'] }
       ]
     }
   ]);
@@ -632,8 +632,8 @@ const Admin = () => {
                           const isDragOver = dragOverItem?.stepId === step.id && dragOverItem?.qIndex === qIndex;
                           
                           const itemTitles = {
-                            question: 'Question', prompt: 'Prompt', audio: 'Audio Upload', video: 'Video Upload',
-                            docs: 'Document Upload', action: 'Action', link: 'Link'
+                            question: 'Question', prompt: 'Prompt', upload: 'File Upload',
+                            action: 'Action', link: 'Link'
                           };
 
                           return (
@@ -678,23 +678,19 @@ const Admin = () => {
                               {isExpanded && (
                                 <div style={{ padding: '1.5rem', backgroundColor: '#f8fafc' }}>
                                   
-                                  {/* Text Area for Question or Prompt */}
-                                  {(item.type === 'question' || item.type === 'prompt') && (
-                                    <>
-                                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Instruction / Text</label>
-                                      <textarea className="textarea-input" value={item.text} onChange={(e) => handleUpdateItem(step.id, item.id, 'text', e.target.value)} placeholder={`e.g., Please enter your ${item.type}...`} style={{marginBottom: '1.5rem', minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem'}} />
-                                    </>
-                                  )}
+                                  {/* Text Area for Instruction / Description */}
+                                  <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Instruction / Question Text</label>
+                                  <textarea className="textarea-input" value={item.text || ''} onChange={(e) => handleUpdateItem(step.id, item.id, 'text', e.target.value)} placeholder={`e.g., Please provide your ${item.type}...`} style={{marginBottom: '1.5rem', minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem'}} />
 
                                   {/* UPLOAD TYPES */}
-                                  {(item.type === 'audio' || item.type === 'video' || item.type === 'docs') && (
+                                  {item.type === 'upload' && (
                                     <>
-                                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>{item.type === 'audio' ? 'Audio Upload' : item.type === 'video' ? 'Video Upload' : 'Document Upload'}</label>
+                                      <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>File Upload</label>
                                       <label className="upload-box" style={{display: 'block', cursor: 'pointer', marginBottom: '1.5rem'}}>
                                         <input 
                                           type="file" 
                                           style={{display: 'none'}} 
-                                          accept={item.type === 'audio' ? 'audio/*' : item.type === 'video' ? 'video/*' : '.pdf,.doc,.docx'} 
+                                          accept="*/*" 
                                           onChange={(e) => {
                                             if (e.target.files && e.target.files[0]) {
                                               handleUpdateItem(step.id, item.id, 'uploadedFile', e.target.files[0].name);
@@ -702,11 +698,11 @@ const Admin = () => {
                                           }}
                                         />
                                         <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                                          <div className="upload-icon-circle">{item.type === 'audio' ? <Mic size={24} /> : item.type === 'video' ? <Play size={24} /> : <FileUp size={24} />}</div>
+                                          <div className="upload-icon-circle"><FileUp size={24} /></div>
                                           <div className="upload-title">
                                             {item.uploadedFile ? <span style={{color: '#4f46e5', fontWeight: '600'}}>{item.uploadedFile}</span> : 'Click to upload or drag and drop'}
                                           </div>
-                                          {!item.uploadedFile && <div className="upload-sub">Supported formats: {item.type === 'audio' ? 'MP3, WAV' : item.type === 'video' ? 'MP4, MOV' : 'PDF, DOCX'} (Max 200MB)</div>}
+                                          {!item.uploadedFile && <div className="upload-sub">Supported formats: All files (Max 200MB)</div>}
                                         </div>
                                       </label>
                                     </>
@@ -817,18 +813,16 @@ const Admin = () => {
                                <button className="btn-secondary" style={{ border: 'none', background: 'none' }} onClick={() => setItemWizardOpenForStep(null)}>Cancel</button>
                              </div>
                              <div className="wizard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
-                                {['question', 'prompt', 'docs', 'video', 'audio', 'link', 'action'].map(t => (
-                                   <div key={t} className="wizard-tile" style={{ padding: '0.75rem', minHeight: 'auto' }} onClick={() => handleAddItem(step.id, t)}>
-                                     {t === 'question' && <QuestionIcon size={20} className="wizard-tile-icon" style={{marginBottom: '0.5rem'}} />}
-                                     {t === 'prompt' && <FileText size={20} className="wizard-tile-icon" style={{marginBottom: '0.5rem'}} />}
-                                     {t === 'docs' && <FileUp size={20} className="wizard-tile-icon" color="#eab308" style={{marginBottom: '0.5rem'}} />}
-                                     {t === 'video' && <Video size={20} className="wizard-tile-icon" color="#3b82f6" style={{marginBottom: '0.5rem'}} />}
-                                     {t === 'audio' && <Mic size={20} className="wizard-tile-icon" color="#a855f7" style={{marginBottom: '0.5rem'}} />}
-                                     {t === 'link' && <Link size={20} className="wizard-tile-icon" color="#94a3b8" style={{marginBottom: '0.5rem'}} />}
-                                     {t === 'action' && <Sparkles size={20} className="wizard-tile-icon" color="#ef4444" style={{marginBottom: '0.5rem'}} />}
-                                     <div className="wizard-tile-label" style={{textTransform: 'capitalize', fontSize: '0.75rem'}}>{t}</div>
-                                   </div>
-                                ))}
+                                 {['question', 'prompt', 'upload', 'link', 'action'].map(t => (
+                                    <div key={t} className="wizard-tile" style={{ padding: '0.75rem', minHeight: 'auto' }} onClick={() => handleAddItem(step.id, t)}>
+                                      {t === 'question' && <QuestionIcon size={20} className="wizard-tile-icon" style={{marginBottom: '0.5rem'}} />}
+                                      {t === 'prompt' && <FileText size={20} className="wizard-tile-icon" style={{marginBottom: '0.5rem'}} />}
+                                      {t === 'upload' && <FileUp size={20} className="wizard-tile-icon" color="#3b82f6" style={{marginBottom: '0.5rem'}} />}
+                                      {t === 'link' && <Link size={20} className="wizard-tile-icon" color="#94a3b8" style={{marginBottom: '0.5rem'}} />}
+                                      {t === 'action' && <Sparkles size={20} className="wizard-tile-icon" color="#ef4444" style={{marginBottom: '0.5rem'}} />}
+                                      <div className="wizard-tile-label" style={{textTransform: 'capitalize', fontSize: '0.75rem'}}>{t === 'upload' ? 'File Upload' : t}</div>
+                                    </div>
+                                 ))}
                              </div>
                            </div>
                         ) : (
