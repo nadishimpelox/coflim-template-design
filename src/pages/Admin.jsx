@@ -53,6 +53,7 @@ const Admin = () => {
   const [draggedItem, setDraggedItem] = useState(null); // { stepId, qIndex }
   const [dragOverItem, setDragOverItem] = useState(null); // { stepId, qIndex }
   const [itemWizardOpenForStep, setItemWizardOpenForStep] = useState(null);
+  const [newItemText, setNewItemText] = useState('');
 
   const handleToggleCategory = (categoryId) => {
     const currentIds = activeTemplate.categoryIds || [];
@@ -152,16 +153,17 @@ const Admin = () => {
     const items = step.items || [];
     const newId = items.length > 0 ? Math.max(...items.map(q => q.id)) + 1 : 1;
     
-    let newItem = { id: newId, type: type, outputType: ['text'] };
-    if (type === 'question') { newItem.text = ''; newItem.choices = []; }
+    let newItem = { id: newId, type: type, outputType: ['text'], text: newItemText };
+    if (type === 'question') { newItem.choices = []; }
     if (type === 'action') { newItem.actionsList = []; }
-    if (type === 'prompt') { newItem.promptText = ''; newItem.outputDestination = 'chat'; }
+    if (type === 'prompt') { newItem.outputDestination = 'chat'; }
     if (type === 'link') { newItem.url = ''; }
     
     const newItems = [...items, newItem];
     handleUpdateStep(stepId, 'items', newItems);
     setExpandedItemIds(prev => ({ ...prev, [stepId]: newId }));
     setItemWizardOpenForStep(null);
+    setNewItemText('');
   };
 
   const handleUpdateItem = (stepId, itemId, field, value) => {
@@ -809,9 +811,19 @@ const Admin = () => {
                         {itemWizardOpenForStep === step.id ? (
                            <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#f8fafc', marginTop: '1rem' }}>
                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                               <div style={{ fontWeight: '600', color: '#0f172a' }}>Select Item Type</div>
-                               <button className="btn-secondary" style={{ border: 'none', background: 'none' }} onClick={() => setItemWizardOpenForStep(null)}>Cancel</button>
+                               <div style={{ fontWeight: '600', color: '#0f172a' }}>Add Item Instruction</div>
+                               <button className="btn-secondary" style={{ border: 'none', background: 'none' }} onClick={() => { setItemWizardOpenForStep(null); setNewItemText(''); }}>Cancel</button>
                              </div>
+                             
+                             <textarea 
+                               className="textarea-input" 
+                               value={newItemText} 
+                               onChange={(e) => setNewItemText(e.target.value)} 
+                               placeholder="e.g., What is your favorite color?" 
+                               style={{marginBottom: '1rem', minHeight: '60px', padding: '0.75rem', fontSize: '0.9rem'}} 
+                             />
+
+                             <div style={{ fontWeight: '600', color: '#0f172a', marginBottom: '0.75rem', fontSize: '0.9rem' }}>Select Item Type</div>
                              <div className="wizard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
                                  {['question', 'prompt', 'upload', 'link', 'action'].map(t => (
                                     <div key={t} className="wizard-tile" style={{ padding: '0.75rem', minHeight: 'auto' }} onClick={() => handleAddItem(step.id, t)}>
