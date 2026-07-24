@@ -710,42 +710,61 @@ const Admin = () => {
                                     </>
                                   )}
 
-                                  {/* OPTIONS BUILDER (For Questions) */}
+                                  {/* QUESTION CONFIGURATION */}
                                   {item.type === 'question' && (
                                     <>
-                                      <div className="add-option-row" style={{marginBottom: '1rem', border: 'none', padding: 0}}>
-                                        <div style={{flex: 1}}>
-                                          <label className="input-label">ADD NEW OPTION</label>
-                                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                            <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Yes" id={`new-qopt-${step.id}-${item.id}`} onKeyDown={(e) => {
-                                              if (e.key === 'Enter' && e.target.value.trim()) {
-                                                handleUpdateItem(step.id, item.id, 'choices', [...(item.choices||[]), {id: Date.now(), text: e.target.value.trim()}]);
-                                                e.target.value = '';
-                                              }
-                                            }} />
-                                            <button className="btn-secondary" onClick={() => {
-                                              const input = document.getElementById(`new-qopt-${step.id}-${item.id}`);
-                                              if (input && input.value.trim()) {
-                                                handleUpdateItem(step.id, item.id, 'choices', [...(item.choices||[]), {id: Date.now(), text: input.value.trim()}]);
-                                                input.value = '';
-                                              }
-                                            }}>Add Option</button>
-                                          </div>
+                                      <div style={{marginBottom: '1.5rem'}}>
+                                        <label className="input-label" style={{textTransform: 'none', color: '#0f172a'}}>Input Type</label>
+                                        <div style={{display: 'flex', gap: '1rem'}}>
+                                          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem'}}>
+                                            <input type="radio" name={`qtype-${step.id}-${item.id}`} value="multiple_choice" checked={(item.answerType || 'multiple_choice') === 'multiple_choice'} onChange={() => handleUpdateItem(step.id, item.id, 'answerType', 'multiple_choice')} />
+                                            Multiple Choice
+                                          </label>
+                                          <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem'}}>
+                                            <input type="radio" name={`qtype-${step.id}-${item.id}`} value="free_text" checked={(item.answerType || 'multiple_choice') === 'free_text'} onChange={() => handleUpdateItem(step.id, item.id, 'answerType', 'free_text')} />
+                                            Free Text
+                                          </label>
                                         </div>
                                       </div>
-                                      
-                                      <div className="configured-choices">
-                                        <label className="input-label">CONFIGURED CHOICES</label>
-                                        <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                                          {(item.choices || []).length === 0 && <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>No choices added yet.</div>}
-                                          {(item.choices || []).map(opt => (
-                                            <div key={opt.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
-                                              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><GripVertical size={16} color="#cbd5e1"/> {opt.text}</div>
-                                              <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateItem(step.id, item.id, 'choices', item.choices.filter(o => o.id !== opt.id))} />
+
+                                      {/* OPTIONS BUILDER (For Questions) */}
+                                      {(item.answerType || 'multiple_choice') === 'multiple_choice' && (
+                                        <>
+                                          <div className="add-option-row" style={{marginBottom: '1rem', border: 'none', padding: 0}}>
+                                            <div style={{flex: 1}}>
+                                              <label className="input-label">ADD NEW OPTION</label>
+                                              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                                <input type="text" className="text-input" style={{marginBottom: 0}} placeholder="e.g. Yes" id={`new-qopt-${step.id}-${item.id}`} onKeyDown={(e) => {
+                                                  if (e.key === 'Enter' && e.target.value.trim()) {
+                                                    handleUpdateItem(step.id, item.id, 'choices', [...(item.choices||[]), {id: Date.now(), text: e.target.value.trim()}]);
+                                                    e.target.value = '';
+                                                  }
+                                                }} />
+                                                <button className="btn-secondary" onClick={() => {
+                                                  const input = document.getElementById(`new-qopt-${step.id}-${item.id}`);
+                                                  if (input && input.value.trim()) {
+                                                    handleUpdateItem(step.id, item.id, 'choices', [...(item.choices||[]), {id: Date.now(), text: input.value.trim()}]);
+                                                    input.value = '';
+                                                  }
+                                                }}>Add Option</button>
+                                              </div>
                                             </div>
-                                          ))}
-                                        </div>
-                                      </div>
+                                          </div>
+                                          
+                                          <div className="configured-choices">
+                                            <label className="input-label">CONFIGURED CHOICES</label>
+                                            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                                              {(item.choices || []).length === 0 && <div style={{fontSize: '0.85rem', color: '#94a3b8'}}>No choices added yet.</div>}
+                                              {(item.choices || []).map(opt => (
+                                                <div key={opt.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                                  <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><GripVertical size={16} color="#cbd5e1"/> {opt.text}</div>
+                                                  <Trash2 size={16} className="step-delete-icon" onClick={() => handleUpdateItem(step.id, item.id, 'choices', item.choices.filter(o => o.id !== opt.id))} />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
                                     </>
                                   )}
 
